@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+
+<sqlgg>
+ <stmt name="create_tbl" sql="CREATE TABLE tbl (uu_id UUID NOT NULL, vc VARCHAR(10), i INT)" kind="create" target="tbl" cardinality="0">
+  <in/>
+  <out/>
+ </stmt>
+ <stmt name="insert_tbl_1" sql="INSERT INTO tbl (vc, i) VALUES ('test', 0) RETURNING uu_id" kind="insert" target="tbl" cardinality="1">
+  <in/>
+  <out>
+   <value name="uu_id" type="Text"/>
+  </out>
+ </stmt>
+ <stmt name="insert_tbl_2" sql="INSERT INTO tbl (vc, i) VALUES ('test1', 1), ('test2', 2) RETURNING uu_id, vc" kind="insert" target="tbl" cardinality="n">
+  <in/>
+  <out>
+   <value name="uu_id" type="Text"/>
+   <value name="vc" type="Text"/>
+  </out>
+ </stmt>
+</sqlgg>

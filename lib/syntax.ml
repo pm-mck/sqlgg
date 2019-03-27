@@ -11,7 +11,7 @@ type env = {
   tables : Tables.table list;
   joined_schema : Schema.t;
   insert_schema : Schema.t;
-}
+} [@@deriving show {with_path=false}]
 
 let empty_env = { tables = []; joined_schema = []; insert_schema = []; }
 
@@ -342,6 +342,13 @@ let annotate_select select types =
   in
   { select with select = { select1 with columns = loop [] select1.columns types }, compound }
 
+let with_returning table env rs = match rs with
+  | None -> []
+  (* Sql.Schema.t = Sql.attr list *)
+  | Some cols ->
+    let joined_schema = snd (Tables.get_from env.tables table) in
+    infer_schema {tables=env.tables;joined_schema;insert_schema=env.insert_schema} cols
+
 let eval (stmt:Sql.stmt) =
   let open Stmt in
   match stmt with
@@ -365,30 +372,33 @@ let eval (stmt:Sql.stmt) =
   | CreateIndex (name,table,cols) ->
       Sql.Schema.project cols (Tables.get_schema table) |> ignore; (* just check *)
       [],[],CreateIndex name
-  | Insert { target=table; action=`Values (names, values); on_duplicate; } ->
+  | Insert { target=table; action=`Values (names, values); on_duplicate; returning; } ->
     let expect = values_or_all table names in
     let env = { tables = [Tables.get table]; joined_schema = expect; insert_schema = expect; } in
-    let params, inferred = match values with
-    | None -> [], Some (Values, expect)
+    let params, inferred, assigns, cardinality = match values with
+    | None ->
+      [], Some (Values, expect), [], `Zero_one
     | Some values ->
       let vl = List.map List.length values in
       let cl = List.length expect in
       if List.exists (fun n -> n <> cl) vl then
         fail "Expecting %u expressions in every VALUES tuple" cl;
       let assigns = List.map (fun tuple -> List.combine (List.map (fun a -> {cname=a.name; tname=None}) expect) tuple) values in
-      params_of_assigns env (List.concat assigns), None
+      params_of_assigns env (List.concat assigns), None, (List.concat assigns), if (List.length values) > 1 then `Nat else `One
     in
     let params2 = params_of_assigns env (Option.default [] on_duplicate) in
-    [], params @ params2, Insert (inferred,table)
-  | Insert { target=table; action=`Select (names, select); on_duplicate; } ->
+    let cardinality = Option.map_default (fun _ -> cardinality) `Zero_one returning in
+    with_returning table env returning, params @ params2, Insert (inferred,table,cardinality)
+  | Insert { target=table; action=`Select (names, select); on_duplicate; returning; } ->
     let expect = values_or_all table names in
     let env = { tables = [Tables.get table]; joined_schema = expect; insert_schema = expect; } in
     let select = annotate_select select (List.map (fun a -> a.domain) expect) in
     let (schema,params,_) = eval_select_full env select in
     ignore (Schema.compound expect schema); (* test equal types once more (not really needed) *)
     let params2 = params_of_assigns env (Option.default [] on_duplicate) in
-    [], params @ params2, Insert (None,table)
-  | Insert { target=table; action=`Set ss; on_duplicate; } ->
+    let cardinality = Option.map_default (fun _ -> `One) `Zero_one returning in
+    with_returning table env returning, params @ params2, Insert (None,table,cardinality)
+  | Insert { target=table; action=`Set ss; on_duplicate; returning; } ->
     let expect = values_or_all table (Option.map (List.map (function ({cname; tname=None},_) -> cname | _ -> assert false)) ss) in
     let env = { tables = [Tables.get table]; joined_schema = expect; insert_schema = expect; } in
     let (params,inferred) = match ss with
@@ -396,7 +406,8 @@ let eval (stmt:Sql.stmt) =
     | Some ss -> params_of_assigns env ss, None
     in
     let params2 = params_of_assigns env (Option.default [] on_duplicate) in
-    [], params @ params2, Insert (inferred,table)
+    let cardinality = Option.map_default (fun _ -> `One) `Zero_one returning in
+    with_returning table env returning, params @ params2, Insert (inferred,table,cardinality)
   | Delete (table, where) ->
     let t = Tables.get table in
     let p = get_params_opt { tables=[t]; joined_schema=snd t; insert_schema=[]; } where in
@@ -458,7 +469,7 @@ let common_prefix = function
 (* fill inferred sql for VALUES or SET *)
 let complete_sql kind sql =
   match kind with
-  | Stmt.Insert (Some (kind,schema), _) ->
+  | Stmt.Insert (Some (kind,schema), _, cardinality) ->
     let (pre,each,post) = match kind with
     | Values -> "(", (fun _ -> ""), ")"
     | Assign -> "", (fun name -> name ^" = "), ""
@@ -483,6 +494,11 @@ let complete_sql kind sql =
       tuck params param;
     );
     B.add_string b post;
+    B.add_string b
+      (match cardinality with
+        | `Zero_one -> ""
+        | `One -> "RETURNING"
+        | `Nat -> ""); (* todo where do i get the list of returning from? *)
     (B.contents b, List.rev !params)
   | _ -> (sql,[])
 

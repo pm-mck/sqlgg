@@ -153,6 +153,7 @@ let keywords =
    "language", LANGUAGE;
    "substring", SUBSTRING;
    "substr", SUBSTRING;
+   "returning", RETURNING;
   ] in (* more *)
   let all token l = k := !k @ List.map (fun x -> x,token) l in
   all DATETIME_FUNC ["current_date";"current_timestamp";"current_time";"localtime";"localtimestamp";"now";];
@@ -343,7 +344,6 @@ ruleCommentMulti acc = parse
     let module P = Parser_state in
     let token = ruleMain lexbuf in
     match !P.mode with
-    | P.Normal -> token
     | P.Ignore ->
 (*         eprintf "ignored: %s\n" (lexeme lexbuf); *)
       if (token = EOF) then token else IGNORED

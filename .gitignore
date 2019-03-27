@@ -14,3 +14,4 @@ sqlgg.cgi
 *.html
 # vim
 *.swp
+.idea

@@ -263,6 +263,7 @@ type insert_action =
            | `Values of (string list option * expr list list option) (* column names * list of value tuples *)
            | `Select of (string list option * select_full) ];
   on_duplicate : assignments option;
+  returning : column list option;
 }
 
 type stmt =

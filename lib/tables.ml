@@ -4,6 +4,7 @@ open Printf
 open ExtLib
 
 type table = Sql.table
+[@@deriving show {with_path=false}]
 
 let all : table list ref = ref []
 

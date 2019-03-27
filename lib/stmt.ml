@@ -10,7 +10,7 @@ type cardinality = [`Zero_one | `One | `Nat] [@@deriving show]
 let cardinality_to_string = show_cardinality
 
 type kind = | Select of cardinality (** possible number of rows *)
-            | Insert of inferred * string (** table *)
+            | Insert of inferred * string * cardinality (** table, potential returning *)
             | Create of string
             | CreateIndex of string
             | Update of string option (** name for single-table UPDATEs *)

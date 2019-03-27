@@ -36,7 +36,7 @@
        DATETIME_FUNC DATE TIME TIMESTAMP ALTER ADD COLUMN CASCADE RESTRICT DROP
        GLOBAL LOCAL VALUE REFERENCES CHECK CONSTRAINT IGNORED AFTER INDEX FULLTEXT FIRST
        CASE WHEN THEN ELSE END CHANGE MODIFY DELAYED ENUM FOR SHARE MODE LOCK
-       OF WITH NOWAIT ACTION NO IS INTERVAL SUBSTRING
+       OF WITH NOWAIT ACTION NO IS INTERVAL SUBSTRING RETURNING
 %token FUNCTION PROCEDURE LANGUAGE RETURNS OUT INOUT BEGIN COMMENT
 %token MICROSECOND SECOND MINUTE HOUR DAY WEEK MONTH QUARTER YEAR
        SECOND_MICROSECOND MINUTE_MICROSECOND MINUTE_SECOND
@@ -106,17 +106,17 @@ statement: CREATE ioption(temporary) TABLE ioption(if_not_exists) name=IDENT sch
                 CreateIndex (name, table, cols)
               }
          | select_stmt { Select $1 }
-         | insert_cmd target=IDENT names=sequence(IDENT)? VALUES values=commas(sequence(expr))? ss=on_duplicate?
+         | insert_cmd target=IDENT names=sequence(IDENT)? VALUES values=commas(sequence(expr))? ss=on_duplicate? rs=returning?
               {
-                Insert { target; action=`Values (names, values); on_duplicate=ss; }
+                Insert { target; action=`Values (names, values); on_duplicate=ss; returning=rs; }
               }
-         | insert_cmd target=IDENT names=sequence(IDENT)? select=maybe_parenth(select_stmt) ss=on_duplicate?
+         | insert_cmd target=IDENT names=sequence(IDENT)? select=maybe_parenth(select_stmt) ss=on_duplicate? rs=returning?
               {
-                Insert { target; action=`Select (names, select); on_duplicate=ss; }
+                Insert { target; action=`Select (names, select); on_duplicate=ss; returning=rs; }
               }
-         | insert_cmd target=IDENT SET set=commas(set_column)? ss=on_duplicate?
+         | insert_cmd target=IDENT SET set=commas(set_column)? ss=on_duplicate? rs=returning?
               {
-                Insert { target; action=`Set set; on_duplicate=ss; }
+                Insert { target; action=`Set set; on_duplicate=ss; returning=rs; }
               }
          | update_cmd table=IDENT SET ss=commas(set_column) w=where? o=loption(order) lim=loption(limit)
               {
@@ -211,6 +211,7 @@ insert_cmd: INSERT DELAYED? OR? conflict_algo INTO | INSERT INTO | REPLACE INTO 
 update_cmd: UPDATE | UPDATE OR conflict_algo { }
 conflict_algo: CONFLICT_ALGO | REPLACE { }
 on_duplicate: ON DUPLICATE KEY UPDATE ss=commas(set_column) { ss }
+returning: RETURNING rs=commas(column1) { rs }
 
 select_type: DISTINCT | ALL { }
 

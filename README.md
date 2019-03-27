@@ -16,7 +16,7 @@ Development
 
 Install dependencies with `opam install --deps-only .`
 
-Buld with `make`
+Build with `make`
 
 Conditions
 ----------
