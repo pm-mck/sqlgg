@@ -284,7 +284,7 @@ ruleMain = parse
   | eof		{ EOF }
   | _	{ error lexbuf "ruleMain" }
 and
-(* FIXME factor out all that ruleIn* rules *)
+
 ruleInQuotes acc = parse
   | '"'	        { acc }
   | eof	        { error lexbuf "no terminating quote" }
@@ -297,7 +297,6 @@ ruleInBrackets acc = parse
   | ']'	        { acc }
   | eof	        { error lexbuf "no terminating bracket" }
   | '\n'        { advance_line lexbuf; error lexbuf "EOL before terminating bracket" }
-(*   | "\"\""      { ruleInQuotes (acc ^ "\"") lexbuf } *)
   | [^']' '\n']+  { ruleInBrackets (acc ^ lexeme lexbuf) lexbuf }
   | _		{ error lexbuf "ruleInBrackets" }
 and
@@ -344,6 +343,7 @@ ruleCommentMulti acc = parse
     let module P = Parser_state in
     let token = ruleMain lexbuf in
     match !P.mode with
+    | P.Normal -> token
     | P.Ignore ->
 (*         eprintf "ignored: %s\n" (lexeme lexbuf); *)
       if (token = EOF) then token else IGNORED

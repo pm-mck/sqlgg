@@ -344,7 +344,6 @@ let annotate_select select types =
 
 let with_returning table env rs = match rs with
   | None -> []
-  (* Sql.Schema.t = Sql.attr list *)
   | Some cols ->
     let joined_schema = snd (Tables.get_from env.tables table) in
     infer_schema {tables=env.tables;joined_schema;insert_schema=env.insert_schema} cols
@@ -375,16 +374,16 @@ let eval (stmt:Sql.stmt) =
   | Insert { target=table; action=`Values (names, values); on_duplicate; returning; } ->
     let expect = values_or_all table names in
     let env = { tables = [Tables.get table]; joined_schema = expect; insert_schema = expect; } in
-    let params, inferred, assigns, cardinality = match values with
+    let params, inferred, cardinality = match values with
     | None ->
-      [], Some (Values, expect), [], `Zero_one
+      [], Some (Values, expect), `Zero_one
     | Some values ->
       let vl = List.map List.length values in
       let cl = List.length expect in
       if List.exists (fun n -> n <> cl) vl then
         fail "Expecting %u expressions in every VALUES tuple" cl;
       let assigns = List.map (fun tuple -> List.combine (List.map (fun a -> {cname=a.name; tname=None}) expect) tuple) values in
-      params_of_assigns env (List.concat assigns), None, (List.concat assigns), if (List.length values) > 1 then `Nat else `One
+      params_of_assigns env (List.concat assigns), None, if (List.length values) > 1 then `Nat else `One
     in
     let params2 = params_of_assigns env (Option.default [] on_duplicate) in
     let cardinality = Option.map_default (fun _ -> cardinality) `Zero_one returning in
