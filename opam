@@ -31,7 +31,7 @@ depends: [
   "mybuild" {build}
   "menhir"
   "ppx_deriving"
-  ("extlib" | "extlib-compat")
+  "extlib"
   "base-unix"
   "ounit"
 ]
